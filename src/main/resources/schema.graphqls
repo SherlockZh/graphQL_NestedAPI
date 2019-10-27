@@ -1,0 +1,25 @@
+type Query {
+    books(bookId: ID, bookName: String, pageCount: Int): [Book]
+    authors: [Author]
+    getBookByPageCount(p: Int): [Book]
+}
+
+type Book {
+    id: ID
+    name: String
+    pageCount: Int
+    author(authorId: ID, authorName: String): [Author]
+}
+
+type Author {
+    id: ID
+    name: String
+    address(zipcode: String): Address
+}
+
+type Address{
+    id: ID
+    city: String
+    road: String
+    zipcode: String
+}
