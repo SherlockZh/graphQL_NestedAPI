@@ -1,7 +1,7 @@
 #Nested API using GraphQL and integrated with Springboot.
 
 Query:
-```Json
+```
 {
   books(pageCount: 223){
     id
