@@ -49,17 +49,18 @@ public class GraphQLDataFetchers {
             Map<String, Object> arguments = environment.getArguments();
             DataFetchingFieldSelectionSet selectionSet = environment.getSelectionSet();
             List<SelectedField> nodeFields = selectionSet.getFields();
+            List<Book> bookResultList = new ArrayList<>();
+
             if(arguments == null || arguments.size() == 0){
+                bookResultList.addAll(bookList);
                 if(nodeFields == null || nodeFields.size() == 0)
                     return bookList;
             }
 
-            List<Book> bookResultList = bookList;
-
             //这一步filter是为了去掉结果中的null项
-            if(arguments != null && arguments.size() > 0)
+            if(arguments != null && arguments.size() > 0) {
                 filterBookList(bookList, bookResultList, arguments);
-
+            }
             nodeFields.forEach(selectedField -> {
                 if(selectedField.getArguments().size() > 0) {
                     Map<String, Object> authorArguments = selectedField.getArguments();
@@ -69,24 +70,9 @@ public class GraphQLDataFetchers {
                             authorArguments.remove(key);
                         }
                     }
+
                     filterAuthorList(bookResultList, authorArguments);
                 }
-
-//                DataFetchingFieldSelectionSet innerSelectionSet = selectedField.getSelectionSet();
-//                List<SelectedField> innerNodeFields = innerSelectionSet.getFields();
-
-//                innerNodeFields.forEach(innerSelectedField -> {
-//                    if(innerSelectedField.getArguments().size() > 0) {
-//                        Map<String, Object> addressArguments = innerSelectedField.getArguments();
-//
-//                        for(String key : addressArguments.keySet()){
-//                            if(!addressParams.contains(key)){
-//                                addressArguments.remove(key);
-//                            }
-//                        }
-//                        filterAddressList(bookResultList, addressArguments);
-//                    }
-//                });
 
             });
 
@@ -100,7 +86,7 @@ public class GraphQLDataFetchers {
             //这里因为是通过Book查询Author数据的子查询，所以dataFetchingEnvironment.getSource()中封装了Book对象的全部信息
             //即GraphQL中每个字段的Datafetcher都是以自顶向下的方式调用的，父字段的结果是子Datafetcherenvironment的source属性。
             Map<String, Object> arguments = environment.getArguments();
-            System.out.println("author fetche arguments: " + arguments);
+            System.out.println("author fetch arguments: " + arguments);
 
             Book book = environment.getSource();
             List<Author> authors = getAuthorByBook(book);
@@ -110,9 +96,9 @@ public class GraphQLDataFetchers {
             }
 
             //查询参数为空，则返回每本book对应的author
-            if(arguments == null || arguments.size() == 0){
-                return authors;
-            }
+//            if(arguments == null || arguments.size() == 0){
+//                return authors;
+//            }
 
             Iterator<Author> authorIterator = authors.iterator();
 
