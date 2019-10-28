@@ -3,11 +3,8 @@ package com.graphqljava.tutorial.bookdetails;
 import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingFieldSelectionSet;
 import graphql.schema.SelectedField;
-import org.checkerframework.checker.units.qual.A;
 import org.springframework.stereotype.Component;
-
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Component
 public class GraphQLDataFetchers {
@@ -15,6 +12,7 @@ public class GraphQLDataFetchers {
     private static List<Book> bookList = new ArrayList<>();
     private static List<Author> authorList = new ArrayList<>();
     private static List<Address> addressList = new ArrayList<>();
+    private Utils utils = new Utils();
 
     private static List<String> bookParams = new ArrayList<>(
             Arrays.asList("bookId", "bookName", "pageCount"));
@@ -30,8 +28,8 @@ public class GraphQLDataFetchers {
         bookList.add(new Book("book2", "book-John1", 223, Arrays.asList("auth1", "auth2")));
         bookList.add(new Book("book3", "book-John1", 223, Arrays.asList("auth1", "auth4")));
         bookList.add(new Book("book4", "book-John2", 223, Arrays.asList("auth2")));
-        bookList.add(new Book("book5", "book-John2", 223, Arrays.asList("auth4")));
-        bookList.add(new Book("book6", "book6", 200, Arrays.asList("auth4")));
+        bookList.add(new Book("book5", "book5-name", 223, Arrays.asList("auth4")));
+        bookList.add(new Book("book6", "book6-name", 200, Arrays.asList("auth4")));
 
         authorList.add(new Author("auth1", "John", "addr1"));
         authorList.add(new Author("auth2", "John", "addr2"));
@@ -52,28 +50,22 @@ public class GraphQLDataFetchers {
             List<Book> bookResultList = new ArrayList<>();
 
             if(arguments == null || arguments.size() == 0){
-                bookResultList.addAll(bookList);
+                bookResultList.addAll(bookList); //
                 if(nodeFields == null || nodeFields.size() == 0)
                     return bookList;
             }
 
-            //这一步filter是为了去掉结果中的null项
+            //去掉结果中的null项
             if(arguments != null && arguments.size() > 0) {
-                filterBookList(bookList, bookResultList, arguments);
+                 utils.filterBookList(bookList, bookResultList, arguments);
             }
             nodeFields.forEach(selectedField -> {
                 if(selectedField.getArguments().size() > 0) {
                     Map<String, Object> authorArguments = selectedField.getArguments();
                     //去掉当前层无法接收的参数
-                    for(String key : authorArguments.keySet()){
-                        if(!authorParams.contains(key)){
-                            authorArguments.remove(key);
-                        }
-                    }
-
-                    filterAuthorList(bookResultList, authorArguments);
+                    utils.remainCurrentLayerArguments(authorArguments, authorParams);
+                    utils.filterAuthorList(bookResultList, authorArguments, authorList);
                 }
-
             });
 
             return bookResultList;
@@ -89,16 +81,11 @@ public class GraphQLDataFetchers {
             System.out.println("author fetch arguments: " + arguments);
 
             Book book = environment.getSource();
-            List<Author> authors = getAuthorByBook(book);
+            List<Author> authors = utils.getAuthorByBook(book, authorList);
 
             if(authors == null){
                 return null;
             }
-
-            //查询参数为空，则返回每本book对应的author
-//            if(arguments == null || arguments.size() == 0){
-//                return authors;
-//            }
 
             Iterator<Author> authorIterator = authors.iterator();
 
@@ -107,34 +94,11 @@ public class GraphQLDataFetchers {
             nodeFields.forEach(selectedField -> {
                 if(selectedField.getArguments().size() > 0){
                     Map<String, Object> nextLevelArguments = selectedField.getArguments();
-
-                    while (authorIterator.hasNext() && !nextLevelArguments.isEmpty()){
-                        Author author = authorIterator.next();
-                        Address address = addressList.stream().filter(a -> a.getId().equals(author.getAddressId())).findFirst().orElse(null);
-                        if(address == null){
-                            break;
-                        }
-                        boolean flag = false;
-                        for(String key : nextLevelArguments.keySet()){
-                            if(address.get(key).equals(nextLevelArguments.get(key))){
-                                flag = true;
-                            }
-                        }
-                        if(!flag)
-                            authorIterator.remove();
-                    }
+                    utils.filterAddressList(authorIterator, nextLevelArguments, addressList);
                 }
             });
             //查询参数不为空，返回按参数过滤后的作者信息
-            while (authorIterator.hasNext()){
-                Author author = authorIterator.next();
-                for(String key : arguments.keySet()){
-                    if(!author.get(key).equals(arguments.get(key))){
-                        authorIterator.remove();
-                        break;
-                    }
-                }
-            }
+            utils.removeInvalidAuthor(authorIterator, arguments);
 
             return authors;
         };
@@ -165,90 +129,6 @@ public class GraphQLDataFetchers {
             return null;
         };
     }
-
-    private void filterBookList(List<Book> bookList, List<Book> bookResultList, Map<String, Object> arguments) {
-        for(Book book : bookList){
-            boolean isValid = true;
-            for(String key : arguments.keySet()){
-                if(isValid && !book.get(key).equals(arguments.get(key))){
-                    isValid = false;
-                }
-            }
-            if(isValid)
-                bookResultList.add(book);
-        }
-    }
-
-    private void filterAuthorList(List<Book> bookResultList, Map<String, Object> arguments) {
-        Iterator<Book> bookIterator = bookResultList.iterator();
-        while (bookIterator.hasNext()){
-            Book book = bookIterator.next();
-            List<Author> authors = getAuthorByBook(book);
-
-            if(authors == null){
-                bookIterator.remove();
-                return;
-            }
-            boolean flag = false;
-            for(String key : arguments.keySet()){
-                for(Author author : authors){
-                    if(author.get(key).equals(arguments.get(key))){
-                        flag = true;
-                    }
-                }
-                if(!flag)
-                    bookIterator.remove();
-            }
-
-        }
-    }
-
-    private void filterAddressList(List<Book> bookResultList, Map<String, Object> addressArguments) {
-        Iterator<Book> bookIterator = bookResultList.iterator();
-        while (bookIterator.hasNext()){
-            Book book = bookIterator.next();
-            List<Author> authors = getAuthorByBook(book);
-            Map<Author, Address> author2Address = getAddressByAuthor(authors);
-
-            if(author2Address == null){
-                bookIterator.remove();
-                return;
-            }
-
-            for(String key : addressArguments.keySet()){
-                for(Author author : authors){
-                    if(!author2Address.get(author).get(key).equals(addressArguments.get(key))){
-                        bookIterator.remove();
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    private List<Author> getAuthorByBook(Book book){
-        List<Author> res = new ArrayList<>();
-        List<String> authorIds = book.getAuthorIds();
-
-        for(String id : authorIds){
-            for(Author author : authorList){
-                if(author.getId().equals(id)){
-                    res.add(author);
-                }
-            }
-        }
-        return res;
-    }
-
-    private Map<Author, Address> getAddressByAuthor(List<Author> authors){
-        Map<Author, Address> res = new HashMap<>();
-        for(Author author : authors){
-            String authorId = author.getId();
-            addressList.stream().filter(a -> a.getId().equals(authorId)).findFirst().ifPresent(address -> res.put(author, address));
-        }
-        return res;
-    }
-
 
     public DataFetcher getBookByPageCount() {
         return environment -> {
