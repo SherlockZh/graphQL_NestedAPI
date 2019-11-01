@@ -1,4 +1,8 @@
-package com.graphqljava.tutorial.bookdetails;
+package com.bookdetails.util;
+
+import com.bookdetails.entity.Address;
+import com.bookdetails.entity.Author;
+import com.bookdetails.entity.Book;
 
 import java.util.*;
 

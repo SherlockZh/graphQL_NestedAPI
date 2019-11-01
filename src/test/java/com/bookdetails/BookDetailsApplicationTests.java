@@ -1,4 +1,4 @@
-package com.graphqljava.tutorial.bookdetails;
+package com.bookdetails;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;

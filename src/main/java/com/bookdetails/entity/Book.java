@@ -1,4 +1,4 @@
-package com.graphqljava.tutorial.bookdetails;
+package com.bookdetails.entity;
 
 import java.util.List;
 

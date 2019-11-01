@@ -1,4 +1,4 @@
-package com.graphqljava.tutorial.bookdetails;
+package com.bookdetails;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Resources;
@@ -32,18 +32,27 @@ public class GraphQLProvider {
         String sdl = Resources.toString(url, Charsets.UTF_8);
 
         //2. 将定义的Schema解析为TypeDefinitionRegistry
-        GraphQLSchema graphQLSchema = buildSchema(sdl);
-        this.graphQL = GraphQL.newGraphQL(graphQLSchema).build();
-    }
-    private GraphQLSchema buildSchema(String sdl) {
         TypeDefinitionRegistry typeRegistry = new SchemaParser().parse(sdl);
 
         //3. 为Schema中定义的方法和字段绑定获取数据的方法
-        RuntimeWiring runtimeWiring = buildWiring();
+        RuntimeWiring runtimeWiring = RuntimeWiring.newRuntimeWiring()
+                .type(newTypeWiring("Query").dataFetcher("books", graphQLDataFetchers.getAllBooksDataFetcher()))
+                .type(newTypeWiring("Query").dataFetcher("authors", graphQLDataFetchers.getAuthorDataFetcher()))
+                .type(newTypeWiring("Book").dataFetcher("author", graphQLDataFetchers.getAuthorDataFetcher()))
+                .type(newTypeWiring("Author").dataFetcher("address", graphQLDataFetchers.getAuthorAddressDataFetcher()))
+                .type(newTypeWiring("Query").dataFetcher("getBookByPageCount", graphQLDataFetchers.getBookByPageCount()))
+                .build();
 
         //4.  将TypeDefinitionRegistry与RuntimeWiring结合起来生成GraphQLSchema
         SchemaGenerator schemaGenerator = new SchemaGenerator();
-        return schemaGenerator.makeExecutableSchema(typeRegistry, runtimeWiring);
+        GraphQLSchema graphQLSchema = schemaGenerator.makeExecutableSchema(typeRegistry, runtimeWiring);
+
+        //5. 实例化GraphQL, GraphQL为执行GraphQL查询语言的入口
+        this.graphQL = GraphQL.newGraphQL(graphQLSchema).build();
+    }
+    private GraphQLSchema buildSchema(String sdl) {
+
+        return null;
     }
     private RuntimeWiring buildWiring() {
         //5. 实例化GraphQL, GraphQL为执行GraphQL查询语言的入口
